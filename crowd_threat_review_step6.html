@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crowd Threat — Report Review</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Azeret+Mono:wght@300;400;500;600;700&family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --ct-dark: #150305;
+    --ct-dark2: #1e0508;
+    --ct-dark3: #2a080c;
+    --threat-red: #FC192E;
+    --threat-red-glow: rgba(252,25,46,0.4);
+    --text-primary: #f0eaea;
+    --text-secondary: #9e8a8b;
+    --text-muted: #5c4a4b;
+    --border: rgba(252,25,46,0.18);
+    --border-light: rgba(255,255,255,0.06);
+    --green: #22c55e;
+    --ai: #a78bfa;
+    --gold: #f59e0b;
+  }
+
+  body {
+    background: var(--ct-dark);
+    font-family: 'Schibsted Grotesk', sans-serif;
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+  }
+
+  /* HEADER */
+  .header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(21,3,5,0.97);
+    position: sticky; top: 0; z-index: 10;
+    backdrop-filter: blur(8px);
+  }
+  .header-left { display: flex; align-items: center; gap: 12px; }
+  .icon-diamond {
+    width: 32px; height: 32px; background: var(--ct-dark3);
+    border: 1px solid var(--border); border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--threat-red); font-size: 14px;
+  }
+  .header-title { font-size: 15px; font-weight: 700; }
+  .header-sub { font-size: 11px; color: var(--text-secondary); font-family: 'Azeret Mono', monospace; }
+  .close-btn {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--ct-dark3); border: 1px solid var(--border);
+    color: var(--text-secondary); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; transition: all 0.2s;
+  }
+  .close-btn:hover { border-color: var(--threat-red); color: var(--threat-red); }
+
+  /* STEP PROGRESS */
+  .step-progress {
+    display: flex; align-items: center; gap: 6px;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .step-dot {
+    width: 28px; height: 28px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700;
+    font-family: 'Azeret Mono', monospace; flex-shrink: 0;
+  }
+  .step-dot.done { background: var(--green); color: #000; }
+  .step-dot.active { background: var(--threat-red); color: #fff; box-shadow: 0 0 10px var(--threat-red-glow); }
+  .step-line { flex: 1; height: 1px; background: linear-gradient(90deg, var(--green), var(--border)); }
+
+  /* MAIN */
+  .main {
+    flex: 1; overflow-y: auto;
+    padding: 16px 20px 100px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .main::-webkit-scrollbar { width: 3px; }
+  .main::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* COST BANNER */
+  .cost-banner {
+    background: linear-gradient(135deg, rgba(252,25,46,0.1), rgba(252,25,46,0.04));
+    border: 1px solid rgba(252,25,46,0.35);
+    border-radius: 8px; padding: 12px 16px;
+    display: flex; align-items: flex-start; gap: 12px;
+    animation: pulse-border 3s ease-in-out infinite;
+  }
+  @keyframes pulse-border { 0%,100% { border-color: rgba(252,25,46,0.35); } 50% { border-color: rgba(252,25,46,0.6); } }
+  .cost-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+  .cost-text-main { font-size: 12px; color: var(--text-secondary); font-family: 'Azeret Mono', monospace; margin-bottom: 3px; line-height: 1.5; }
+  .cost-text-main strong { color: var(--threat-red); }
+  .cost-text-sub { font-size: 11px; color: var(--text-muted); font-family: 'Azeret Mono', monospace; }
+  .cost-text-sub em { color: var(--text-secondary); font-style: normal; }
+
+  /* SECTION CARD */
+  .section-card {
+    background: var(--ct-dark2);
+    border: 1px solid var(--border-light);
+    border-radius: 10px; overflow: hidden;
+    transition: border-color 0.3s;
+  }
+  .section-card.all-on { border-color: rgba(34,197,94,0.3); }
+  .section-card.shake { animation: shake 0.3s ease; }
+  @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+
+  .section-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--border-light);
+    background: rgba(0,0,0,0.2);
+  }
+  .section-label {
+    font-family: 'Azeret Mono', monospace; font-size: 9px;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--text-muted); background: var(--ct-dark3);
+    border: 1px solid var(--border); padding: 2px 7px; border-radius: 4px; flex-shrink: 0;
+  }
+  .section-title { flex: 1; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+  .section-count { font-family: 'Azeret Mono', monospace; font-size: 10px; color: var(--text-muted); transition: color 0.3s; }
+  .section-count.done { color: var(--green); }
+
+  .meta-row {
+    padding: 8px 16px; border-bottom: 1px solid var(--border-light);
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    background: rgba(0,0,0,0.12);
+  }
+  .meta-pill {
+    font-family: 'Azeret Mono', monospace; font-size: 10px;
+    padding: 3px 8px; border-radius: 4px;
+    background: var(--ct-dark3); border: 1px solid var(--border); color: var(--text-secondary);
+  }
+  .meta-pill.red { border-color: rgba(252,25,46,0.4); color: var(--threat-red); }
+  .meta-pill.time { border-color: rgba(245,158,11,0.4); color: #f59e0b; display: flex; align-items: center; gap: 5px; }
+  .meta-pill.time .blink { width: 5px; height: 5px; border-radius: 50%; background: #f59e0b; animation: blink 1.4s ease-in-out infinite; }
+  @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0.2; } }
+
+  .preview-text {
+    padding: 8px 16px; border-bottom: 1px solid var(--border-light);
+    background: rgba(0,0,0,0.15);
+    font-size: 11px; color: var(--text-secondary); line-height: 1.5; font-style: italic;
+  }
+
+  .summary-bullets {
+    padding: 8px 16px 10px; border-bottom: 1px solid var(--border-light);
+    display: flex; flex-direction: column; gap: 3px;
+  }
+  .bullet-item { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-muted); padding: 2px 0; transition: color 0.2s; }
+  .bullet-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--text-muted); flex-shrink: 0; transition: background 0.2s; }
+  .bullet-item.lit { color: var(--green); }
+  .bullet-item.lit .bullet-dot { background: var(--green); }
+
+  .toggle-row { display: flex; align-items: flex-start; gap: 14px; padding: 13px 16px; }
+  .toggle-switch {
+    width: 40px; height: 22px; border-radius: 11px;
+    background: var(--ct-dark3); border: 1.5px solid var(--text-muted);
+    position: relative; flex-shrink: 0; transition: all 0.25s; cursor: pointer; margin-top: 1px;
+  }
+  .toggle-switch::after {
+    content: ''; position: absolute; width: 14px; height: 14px; border-radius: 50%;
+    background: var(--text-muted); top: 2px; left: 2px; transition: all 0.25s;
+  }
+  .toggle-switch.on { background: rgba(34,197,94,0.2); border-color: var(--green); box-shadow: 0 0 8px rgba(34,197,94,0.35); }
+  .toggle-switch.on::after { background: var(--green); transform: translateX(18px); }
+
+  .toggle-label { flex: 1; }
+  .toggle-title { font-size: 12px; font-weight: 600; line-height: 1.4; margin-bottom: 3px; cursor: pointer; }
+  .toggle-hint { font-size: 11px; color: var(--text-muted); line-height: 1.4; margin-bottom: 10px; }
+  .toggle-hint a { color: var(--threat-red); text-decoration: none; font-family: 'Azeret Mono', monospace; font-size: 10px; }
+
+  .ai-nudge { display: flex; align-items: center; gap: 6px; }
+  .ai-nudge-label { font-family: 'Azeret Mono', monospace; font-size: 9px; color: var(--text-muted); }
+
+  /* AI PANEL */
+  .ai-panel { display: none; padding: 10px 16px 12px; border-top: 1px solid rgba(167,139,250,0.15); background: rgba(167,139,250,0.05); border-left: 3px solid var(--ai); }
+  .ai-panel.visible { display: block; animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(-3px); } to { opacity:1; transform:translateY(0); } }
+  .ai-panel-label { font-family: 'Azeret Mono', monospace; font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ai); margin-bottom: 6px; }
+  .ai-panel-body { font-size: 11px; color: var(--text-secondary); line-height: 1.7; }
+  .ai-streaming::after { content: '▋'; animation: cur 0.7s step-end infinite; color: var(--ai); }
+  @keyframes cur { 0%,100% { opacity:1; } 50% { opacity:0; } }
+
+  /* TIME COMPARE */
+  .time-compare { padding: 10px 16px 4px; display: flex; align-items: stretch; gap: 10px; border-bottom: 1px solid var(--border-light); }
+  .time-block { flex: 1; background: rgba(0,0,0,0.2); border: 1px solid var(--border-light); border-radius: 6px; padding: 8px 10px; }
+  .time-block-label { font-family: 'Azeret Mono', monospace; font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 4px; }
+  .time-block-value { font-family: 'Azeret Mono', monospace; font-size: 13px; font-weight: 600; color: var(--text-primary); letter-spacing: 0.05em; }
+  .time-block-sub { font-size: 10px; color: var(--text-muted); margin-top: 2px; font-family: 'Azeret Mono', monospace; }
+  .time-arrow { display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 16px; flex-shrink: 0; }
+  .time-block.match { border-color: rgba(34,197,94,0.3); }
+  .time-block.match .time-block-value { color: var(--green); }
+
+  /* WARNING */
+  .warning-box { padding: 11px 14px; background: rgba(252,25,46,0.05); border: 1px solid rgba(252,25,46,0.2); border-left: 3px solid var(--threat-red); border-radius: 8px; }
+  .warning-title { font-size: 11px; font-weight: 700; color: var(--threat-red); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+  .warning-body { font-size: 11px; color: var(--text-secondary); line-height: 1.5; }
+  .warning-body strong { color: var(--text-primary); }
+
+  /* CONFIRM */
+  .confirm-card { background: var(--ct-dark2); border: 1px solid var(--border-light); border-radius: 10px; overflow: hidden; transition: border-color 0.3s; }
+  .confirm-card.ready { border-color: rgba(34,197,94,0.4); }
+  .confirm-toggle-row { display: flex; align-items: center; gap: 14px; padding: 14px 16px; cursor: pointer; transition: background 0.2s; }
+  .confirm-toggle-row:hover { background: rgba(255,255,255,0.02); }
+  .big-toggle { width: 48px; height: 26px; border-radius: 13px; background: var(--ct-dark3); border: 1.5px solid var(--text-muted); position: relative; flex-shrink: 0; transition: all 0.3s; cursor: pointer; }
+  .big-toggle::after { content: ''; position: absolute; width: 18px; height: 18px; border-radius: 50%; background: var(--text-muted); top: 2px; left: 2px; transition: all 0.3s; }
+  .big-toggle.on { background: rgba(34,197,94,0.2); border-color: var(--green); box-shadow: 0 0 12px rgba(34,197,94,0.4); }
+  .big-toggle.on::after { background: var(--green); transform: translateX(22px); }
+  .confirm-label { font-size: 13px; font-weight: 600; transition: color 0.3s; }
+  .confirm-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+  /* LEVEL CARD */
+  .level-card {
+    border-radius: 10px; overflow: hidden;
+    border: 1px solid rgba(252,25,46,0.3);
+    background: linear-gradient(135deg, rgba(252,25,46,0.08) 0%, rgba(21,3,5,0) 60%);
+  }
+  .level-card-top { padding: 14px 16px 12px; display: flex; align-items: center; gap: 14px; }
+  .level-badge {
+    display: flex; align-items: center; justify-content: center;
+    background: #FC192E; color: #fff;
+    font-family: 'Azeret Mono', monospace; font-size: 11px; font-weight: 800;
+    letter-spacing: 0.1em; padding: 6px 14px; border-radius: 5px; flex-shrink: 0;
+    box-shadow: 0 0 14px rgba(252,25,46,0.5); text-transform: uppercase;
+  }
+  .level-card-text { flex: 1; }
+  .level-card-title { font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 3px; }
+  .level-card-title span { color: var(--threat-red); }
+  .level-card-sub { font-size: 11px; color: var(--text-secondary); line-height: 1.5; }
+  .level-card-divider { height: 1px; background: rgba(252,25,46,0.12); margin: 0 16px; }
+  .level-card-bottom { padding: 10px 16px 13px; display: flex; align-items: center; gap: 8px; }
+  .level-progress-track { flex: 1; height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; }
+  .level-progress-fill { height: 100%; width: 20%; background: linear-gradient(90deg, #FC192E, #ff6b7a); border-radius: 2px; }
+  .level-progress-label { font-family: 'Azeret Mono', monospace; font-size: 9px; color: var(--text-muted); white-space: nowrap; }
+  .level-progress-label strong { color: var(--threat-red); }
+
+  /* FOOTER */
+  .footer { position: fixed; bottom: 0; left: 0; right: 0; padding: 12px 20px; background: var(--ct-dark); border-top: 1px solid var(--border); display: flex; gap: 8px; z-index: 10; }
+  .btn { flex: 1; padding: 10px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; font-family: 'Schibsted Grotesk', sans-serif; letter-spacing: 0.02em; }
+  .btn-back { background: transparent; border: 1px solid var(--border); color: var(--text-secondary); flex: 0.55; }
+  .btn-back:hover { border-color: var(--text-secondary); color: var(--text-primary); }
+  .btn-edit { background: transparent; border: 1px solid var(--border); color: var(--text-secondary); flex: 0.55; }
+  .btn-edit:hover { border-color: var(--threat-red); color: var(--threat-red); }
+  .btn-submit { background: var(--threat-red); color: #fff; border: none; box-shadow: 0 4px 16px rgba(252,25,46,0.3); }
+  .btn-submit:hover:not(:disabled) { background: #ff2d42; }
+  .btn-submit:disabled { background: var(--ct-dark3); color: var(--text-muted); box-shadow: none; cursor: not-allowed; border: 1px solid var(--border); }
+
+  .ai-spin { display: inline-block; animation: spin 0.8s linear infinite; }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="icon-diamond">◈</div>
+    <div>
+      <div class="header-title">Report New Threat</div>
+      <div class="header-sub">Review &amp; Confirm</div>
+    </div>
+  </div>
+  <div class="close-btn">✕</div>
+</div>
+
+<div class="step-progress">
+  <div class="step-dot done">✓</div><div class="step-line"></div>
+  <div class="step-dot done">✓</div><div class="step-line"></div>
+  <div class="step-dot done">✓</div><div class="step-line"></div>
+  <div class="step-dot done">✓</div><div class="step-line"></div>
+  <div class="step-dot done">✓</div><div class="step-line"></div>
+  <div class="step-dot active">6</div>
+</div>
+
+<div class="main">
+
+  <!-- COST BANNER -->
+  <div class="cost-banner">
+    <div class="cost-icon">⚠</div>
+    <div class="cost-text">
+      <div class="cost-text-main">If this report is inaccurate it will cost you <strong>£0.50</strong></div>
+      <div class="cost-text-sub">Rejected reports to date: <em>£73.60 lost across 147 submissions</em></div>
+    </div>
+  </div>
+
+  <!-- 1. TITLE -->
+  <div class="section-card" id="card-title">
+    <div class="section-header">
+      <div class="section-label">01</div>
+      <div class="section-title">Title</div>
+      <div class="section-count" id="count-title">0 / 1</div>
+    </div>
+    <div class="preview-text">"Six Arrests Follow UKIP March and Counter Protest, Liverpool, United Kingdom"</div>
+    <div class="toggle-row">
+      <div class="toggle-switch" id="title1" onclick="tog('title1')"></div>
+      <div class="toggle-label">
+        <div class="toggle-title" onclick="tog('title1')">Does this say what happened and where it happened?</div>
+        <div class="toggle-hint">If future-looking, check the tense — use <em>Planned...</em> or <em>Scheduled...</em> not past tense.</div>
+        <div class="ai-nudge">
+          <span class="ai-nudge-label">Not sure? Get a second opinion</span>
+          <button onclick="runAI('title')" id="ai-btn-title" style="all:unset;display:inline-block;background-color:#FC192E;color:#FFFFFF;-webkit-text-fill-color:#FFFFFF;font-family:'Azeret Mono',monospace;font-size:8px;font-weight:700;letter-spacing:0.08em;padding:2px 6px;border-radius:2px;cursor:pointer;line-height:1.4;flex-shrink:0;">AI</button>
+        </div>
+      </div>
+    </div>
+    <div class="ai-panel" id="ai-panel-title"><div class="ai-panel-label">✦ AI Analyst</div><div class="ai-panel-body" id="ai-body-title"></div></div>
+  </div>
+
+  <!-- 2. CATEGORISATION -->
+  <div class="section-card" id="card-cat">
+    <div class="section-header">
+      <div class="section-label">02</div>
+      <div class="section-title">Categorisation</div>
+      <div class="section-count" id="count-cat">0 / 1</div>
+    </div>
+    <div class="meta-row">
+      <span class="meta-pill">Social &amp; Political</span>
+      <span class="meta-pill red">⚑ Protest / Civil Unrest</span>
+    </div>
+    <div class="toggle-row">
+      <div class="toggle-switch" id="cat1" onclick="tog('cat1')"></div>
+      <div class="toggle-label">
+        <div class="toggle-title" onclick="tog('cat1')">Is this the correct type per the Crowd Threat taxonomy?</div>
+        <div class="toggle-hint">Not sure about the category? <a href="#" onclick="return false;">↗ Check the taxonomy</a></div>
+        <div class="ai-nudge">
+          <span class="ai-nudge-label">Not sure? Get a second opinion</span>
+          <button onclick="runAI('cat')" id="ai-btn-cat" style="all:unset;display:inline-block;background-color:#FC192E;color:#FFFFFF;-webkit-text-fill-color:#FFFFFF;font-family:'Azeret Mono',monospace;font-size:8px;font-weight:700;letter-spacing:0.08em;padding:2px 6px;border-radius:2px;cursor:pointer;line-height:1.4;flex-shrink:0;">AI</button>
+        </div>
+      </div>
+    </div>
+    <div class="ai-panel" id="ai-panel-cat"><div class="ai-panel-label">✦ AI Analyst</div><div class="ai-panel-body" id="ai-body-cat"></div></div>
+  </div>
+
+  <!-- 3. SUMMARY -->
+  <div class="section-card" id="card-sum">
+    <div class="section-header">
+      <div class="section-label">03</div>
+      <div class="section-title">Summary</div>
+      <div class="section-count" id="count-sum">0 / 1</div>
+    </div>
+    <div class="preview-text">"Six individuals were arrested during a UKIP march and counter-protest in Liverpool..."</div>
+    <div class="summary-bullets">
+      <div class="bullet-item" id="b1"><div class="bullet-dot"></div>What happened</div>
+      <div class="bullet-item" id="b2"><div class="bullet-dot"></div>Where it happened</div>
+      <div class="bullet-item" id="b3"><div class="bullet-dot"></div>Date &amp; time (LOCAL time)</div>
+      <div class="bullet-item" id="b4"><div class="bullet-dot"></div>Confirmed impact / casualties</div>
+      <div class="bullet-item" id="b5"><div class="bullet-dot"></div>Known or unclear cause</div>
+      <div class="bullet-item" id="b6"><div class="bullet-dot"></div>Relevant groups / TTPs (if applicable)</div>
+    </div>
+    <div class="toggle-row">
+      <div class="toggle-switch" id="sum1" onclick="tog('sum1')"></div>
+      <div class="toggle-label">
+        <div class="toggle-title" onclick="tog('sum1')">Does the summary read well and cover all key details above?</div>
+        <div class="toggle-hint">Only confirmed, sourced information. No speculation.</div>
+        <div class="ai-nudge">
+          <span class="ai-nudge-label">Not sure? Get a second opinion</span>
+          <button onclick="runAI('sum')" id="ai-btn-sum" style="all:unset;display:inline-block;background-color:#FC192E;color:#FFFFFF;-webkit-text-fill-color:#FFFFFF;font-family:'Azeret Mono',monospace;font-size:8px;font-weight:700;letter-spacing:0.08em;padding:2px 6px;border-radius:2px;cursor:pointer;line-height:1.4;flex-shrink:0;">AI</button>
+        </div>
+      </div>
+    </div>
+    <div class="ai-panel" id="ai-panel-sum"><div class="ai-panel-label">✦ AI Analyst</div><div class="ai-panel-body" id="ai-body-sum"></div></div>
+  </div>
+
+  <!-- 4. TIMELINE -->
+  <div class="section-card" id="card-time">
+    <div class="section-header">
+      <div class="section-label">04</div>
+      <div class="section-title">Timeline</div>
+      <div class="section-count" id="count-time">0 / 1</div>
+    </div>
+    <div class="meta-row">
+      <span class="meta-pill time"><div class="blink"></div>21/03/2026 — 23:16 LOCAL</span>
+      <span class="meta-pill">Liverpool, United Kingdom</span>
+    </div>
+    <div class="time-compare">
+      <div class="time-block" id="tb-form">
+        <div class="time-block-label">Logged on form</div>
+        <div class="time-block-value">23:16</div>
+        <div class="time-block-sub">21 Mar 2026 · GMT</div>
+      </div>
+      <div class="time-arrow">↔</div>
+      <div class="time-block" id="tb-summary">
+        <div class="time-block-label">Referenced in summary</div>
+        <div class="time-block-value">—</div>
+        <div class="time-block-sub">Check summary text</div>
+      </div>
+    </div>
+    <div class="toggle-row">
+      <div class="toggle-switch" id="time1" onclick="tog('time1')"></div>
+      <div class="toggle-label">
+        <div class="toggle-title" onclick="tog('time1')">Does 21/03/2026 at 23:16 match the time stated in your summary?</div>
+        <div class="toggle-hint">LOCAL time for Liverpool (GMT). Mismatches cause automatic rejection.</div>
+        <div class="ai-nudge">
+          <span class="ai-nudge-label">Not sure? Get a second opinion</span>
+          <button onclick="runAI('time')" id="ai-btn-time" style="all:unset;display:inline-block;background-color:#FC192E;color:#FFFFFF;-webkit-text-fill-color:#FFFFFF;font-family:'Azeret Mono',monospace;font-size:8px;font-weight:700;letter-spacing:0.08em;padding:2px 6px;border-radius:2px;cursor:pointer;line-height:1.4;flex-shrink:0;">AI</button>
+        </div>
+      </div>
+    </div>
+    <div class="ai-panel" id="ai-panel-time"><div class="ai-panel-label">✦ AI Analyst</div><div class="ai-panel-body" id="ai-body-time"></div></div>
+  </div>
+
+  <!-- 5. LOCATION -->
+  <div class="section-card" id="card-loc">
+    <div class="section-header">
+      <div class="section-label">05</div>
+      <div class="section-title">Location</div>
+      <div class="section-count" id="count-loc">0 / 1</div>
+    </div>
+    <div class="meta-row">
+      <span class="meta-pill">⌖ Liverpool Town Hall, Liverpool</span>
+    </div>
+    <div class="toggle-row">
+      <div class="toggle-switch" id="loc1" onclick="tog('loc1')"></div>
+      <div class="toggle-label">
+        <div class="toggle-title" onclick="tog('loc1')">Are you certain the map pin is in the correct location?</div>
+        <div class="toggle-hint">Pin should be street-level where known. Incorrect location is grounds for rejection.</div>
+        <div class="ai-nudge">
+          <span class="ai-nudge-label">Not sure? Get a second opinion</span>
+          <button onclick="runAI('loc')" id="ai-btn-loc" style="all:unset;display:inline-block;background-color:#FC192E;color:#FFFFFF;-webkit-text-fill-color:#FFFFFF;font-family:'Azeret Mono',monospace;font-size:8px;font-weight:700;letter-spacing:0.08em;padding:2px 6px;border-radius:2px;cursor:pointer;line-height:1.4;flex-shrink:0;">AI</button>
+        </div>
+      </div>
+    </div>
+    <div class="ai-panel" id="ai-panel-loc"><div class="ai-panel-label">✦ AI Analyst</div><div class="ai-panel-body" id="ai-body-loc"></div></div>
+  </div>
+
+  <!-- WARNING -->
+  <div class="warning-box">
+    <div class="warning-title">⚠ Before you submit</div>
+    <div class="warning-body">If any of the above are not accurate, <strong>this report will not be accepted</strong> and it will cost you <strong>£0.50</strong>. Confirm all five sections are correct before declaring below.</div>
+  </div>
+
+  <!-- CONFIRM -->
+  <div class="confirm-card" id="confirmCard">
+    <div class="confirm-toggle-row" onclick="doConfirm()">
+      <div class="big-toggle" id="bigToggle"></div>
+      <div>
+        <div class="confirm-label" id="confirmLabel">I confirm this report is accurate and complete</div>
+        <div class="confirm-sub" id="confirmSub">All five sections must be confirmed first</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LEVEL CARD -->
+  <div class="level-card">
+    <div class="level-card-top">
+      <div class="level-badge">Level 1</div>
+      <div class="level-card-text">
+        <div class="level-card-title">You are a <span>Level 1</span> Threat Reporter</div>
+        <div class="level-card-sub">At this stage, all reports require this review step before submission. Reach <strong>Level 5</strong> and your reports will be trusted and submitted directly — no review required.</div>
+      </div>
+    </div>
+    <div class="level-card-divider"></div>
+    <div class="level-card-bottom">
+      <div class="level-progress-label">Level 1</div>
+      <div class="level-progress-track">
+        <div class="level-progress-fill"></div>
+      </div>
+      <div class="level-progress-label">Level <strong>5</strong></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  <button class="btn btn-back">← Back</button>
+  <button class="btn btn-edit">✎ Edit</button>
+  <button class="btn btn-submit" id="submitBtn" disabled>Submit Report →</button>
+</div>
+
+<script>
+  const summary = "Six individuals were arrested during a UKIP march and counter-protest in Liverpool. The Merseyside Police had a significant presence to ensure public safety due to prior notification of the procession. Three of the arrested individuals were taken into custody, with charges including breach of the peace, breach of bail conditions, and public assembly violations. A Section 60 Order was enacted to allow police to search suspected individuals, and a Section 60AA authorization permitted arrests for failure to remove face coverings. Contrary to social media claims, a Section 35 Dispersal Zone was not established.";
+
+  const prompts = {
+    title: `You are a senior intelligence analyst at Crowd Threat. Review this incident report title in 2–3 concise sentences. Does it clearly state what happened and where? Flag any tense issues if it should be future-looking.\n\nTitle: "Six Arrests Follow UKIP March and Counter Protest, Liverpool, United Kingdom"`,
+    cat:   `You are a senior intelligence analyst at Crowd Threat. In 2–3 sentences, confirm whether "Social & Political — Protest / Civil Unrest" is the correct category for this incident. Be direct.\n\nIncident: "${summary.substring(0,250)}"`,
+    sum:   `You are a senior intelligence analyst at Crowd Threat. Review this summary against the six required fields: (1) what happened, (2) where, (3) date/time in LOCAL time, (4) confirmed impact/casualties, (5) known or unclear cause, (6) relevant groups/TTPs. Identify any gaps in 2–3 sentences.\n\nSummary: "${summary}"`,
+    time:  `You are a senior intelligence analyst at Crowd Threat. The form logs this incident at 21/03/2026 23:16 GMT (Liverpool, UK). In 2 sentences, confirm whether the summary text is consistent with this timestamp and correctly uses LOCAL time.\n\nSummary: "${summary.substring(0,300)}"`,
+    loc:   `You are a senior intelligence analyst at Crowd Threat. The map pin is placed at "Liverpool Town Hall, Liverpool, United Kingdom". In 2 sentences, confirm whether this location is correct and precise enough for this incident.\n\nSummary: "${summary.substring(0,250)}"`
+  };
+
+  const toggles = { title1: false, cat1: false, sum1: false, time1: false, loc1: false };
+  const sectionMap = {
+    title1: { card: 'card-title', count: 'count-title' },
+    cat1:   { card: 'card-cat',   count: 'count-cat'   },
+    sum1:   { card: 'card-sum',   count: 'count-sum'   },
+    time1:  { card: 'card-time',  count: 'count-time'  },
+    loc1:   { card: 'card-loc',   count: 'count-loc'   }
+  };
+  let confirmed = false;
+
+  async function runAI(section) {
+    const btn   = document.getElementById(`ai-btn-${section}`);
+    const panel = document.getElementById(`ai-panel-${section}`);
+    const body  = document.getElementById(`ai-body-${section}`);
+    btn.style.opacity = '0.5';
+    btn.style.cursor = 'not-allowed';
+    btn.innerHTML = '<span class="ai-spin">↻</span>';
+    panel.classList.add('visible');
+    body.textContent = '';
+    body.classList.add('ai-streaming');
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          stream: true,
+          messages: [{ role: 'user', content: prompts[section] }]
+        })
+      });
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split('\n'); buf = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const d = line.slice(6).trim();
+          if (d === '[DONE]') continue;
+          try {
+            const p = JSON.parse(d);
+            if (p.type === 'content_block_delta' && p.delta?.text) body.textContent += p.delta.text;
+          } catch {}
+        }
+      }
+    } catch { body.textContent = 'Unable to reach AI analyst. Please try again.'; }
+    body.classList.remove('ai-streaming');
+    btn.style.opacity = '1';
+    btn.style.cursor = 'pointer';
+    btn.textContent = 'AI';
+  }
+
+  function tog(id) {
+    toggles[id] = !toggles[id];
+    document.getElementById(id).classList.toggle('on', toggles[id]);
+    const sec = sectionMap[id];
+    const countEl = document.getElementById(sec.count);
+    countEl.textContent = (toggles[id] ? 1 : 0) + ' / 1';
+    countEl.classList.toggle('done', toggles[id]);
+    document.getElementById(sec.card).classList.toggle('all-on', toggles[id]);
+    if (id === 'time1') {
+      const tb = document.getElementById('tb-summary');
+      if (toggles[id]) {
+        tb.classList.add('match'); document.getElementById('tb-form').classList.add('match');
+        tb.querySelector('.time-block-value').textContent = '23:16';
+        tb.querySelector('.time-block-sub').textContent = '21 Mar 2026 · Confirmed';
+      } else {
+        tb.classList.remove('match'); document.getElementById('tb-form').classList.remove('match');
+        tb.querySelector('.time-block-value').textContent = '—';
+        tb.querySelector('.time-block-sub').textContent = 'Check summary text';
+      }
+    }
+    if (id === 'sum1') {
+      ['b1','b2','b3','b4','b5','b6'].forEach((b,i) =>
+        setTimeout(() => document.getElementById(b).classList.toggle('lit', toggles[id]), toggles[id] ? i*55 : 0)
+      );
+    }
+    if (!toggles[id] && confirmed) { confirmed = false; updateConfirmUI(); }
+    updateSubmit();
+  }
+
+  function allDone() { return Object.values(toggles).every(Boolean); }
+
+  function doConfirm() {
+    if (!allDone()) {
+      Object.entries(sectionMap).forEach(([key, sec]) => {
+        if (!toggles[key]) {
+          const c = document.getElementById(sec.card);
+          c.classList.add('shake');
+          setTimeout(() => c.classList.remove('shake'), 400);
+        }
+      });
+      return;
+    }
+    confirmed = !confirmed;
+    updateConfirmUI();
+    updateSubmit();
+  }
+
+  function updateConfirmUI() {
+    document.getElementById('bigToggle').classList.toggle('on', confirmed);
+    document.getElementById('confirmCard').classList.toggle('ready', confirmed);
+    const label = document.getElementById('confirmLabel');
+    const sub   = document.getElementById('confirmSub');
+    if (confirmed) {
+      label.textContent = '✓ Report confirmed as accurate and complete';
+      label.style.color = 'var(--green)';
+      sub.textContent = 'You are ready to submit';
+    } else {
+      label.textContent = 'I confirm this report is accurate and complete';
+      label.style.color = '';
+      sub.textContent = 'All five sections must be confirmed first';
+    }
+  }
+
+  function updateSubmit() {
+    document.getElementById('submitBtn').disabled = !(allDone() && confirmed);
+  }
+</script>
+
+</body>
+</html>
